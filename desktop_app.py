@@ -16,9 +16,8 @@ try:
 except ImportError:
     FPDF = None
 
-# Стандартні налаштування за замовчуванням
 DEFAULT_SETTINGS = {
-    "theme": "light",           # або "dark"
+    "theme": "light",
     "font_size": 18,
     "hotkeys": {
         "C": "Escape",
@@ -29,11 +28,9 @@ DEFAULT_SETTINGS = {
 
 SETTINGS_FILE = "settings.json"
 
-# Функція для запуску веб‑версії (Flask‑сервер)
 def launch_web_interface():
-    import web_interface  # імпортуємо модуль з веб‑інтерфейсом
+    import web_interface  
     def run_app():
-        # Запускаємо сервер на 0.0.0.0:5000 без reloader
         web_interface.app.run(host="127.0.0.1", port=5000, debug=False, use_reloader=False)
     t = threading.Thread(target=run_app, daemon=True)
     t.start()
@@ -45,7 +42,6 @@ class App(ctk.CTk):
         self.title("Мульти-Функціональний Додаток")
         self.geometry("1100x750")
         self.settings = self.load_settings()
-        # Застосування теми
         ctk.set_appearance_mode(self.settings.get("theme", "light"))
         
         container = ctk.CTkFrame(self)
@@ -248,7 +244,7 @@ class AdvancedCalc(ctk.CTkFrame):
         self.expression = ""
         self.last_result = ""
         self.memory = 0
-        self.history_list = []  # зберігаємо кортежі: (timestamp, entry_text)
+        self.history_list = []
         self.history_sort_ascending = True
         self.load_history()
         

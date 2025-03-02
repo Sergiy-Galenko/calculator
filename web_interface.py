@@ -3,7 +3,7 @@ import math
 import fractions
 import io
 import matplotlib
-matplotlib.use('Agg')  # Використовуємо non-GUI backend
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
 app = Flask(__name__)
