@@ -8,6 +8,8 @@ import json
 import datetime
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+import threading
+import webbrowser
 
 try:
     from fpdf import FPDF
@@ -27,13 +29,24 @@ DEFAULT_SETTINGS = {
 
 SETTINGS_FILE = "settings.json"
 
-# Головний клас додатку
+# Функція для запуску веб‑версії (Flask‑сервер)
+def launch_web_interface():
+    import web_interface  # імпортуємо модуль з веб‑інтерфейсом
+    def run_app():
+        # Запускаємо сервер на 0.0.0.0:5000 без reloader
+        web_interface.app.run(host="127.0.0.1", port=5000, debug=False, use_reloader=False)
+    t = threading.Thread(target=run_app, daemon=True)
+    t.start()
+    webbrowser.open("http://127.0.0.1:5000/")
+
 class App(ctk.CTk):
     def __init__(self):
         super().__init__()
         self.title("Мульти-Функціональний Додаток")
         self.geometry("1100x750")
         self.settings = self.load_settings()
+        # Застосування теми
+        ctk.set_appearance_mode(self.settings.get("theme", "light"))
         
         container = ctk.CTkFrame(self)
         container.pack(side="top", fill="both", expand=True)
@@ -68,25 +81,19 @@ class App(ctk.CTk):
     def update_settings(self, new_settings):
         self.settings.update(new_settings)
         self.save_settings()
-        # Оновлюємо інтерфейс усіх фреймів, якщо підтримують apply_settings
+        ctk.set_appearance_mode(self.settings.get("theme", "light"))
         for frame in self.frames.values():
             if hasattr(frame, "apply_settings"):
                 frame.apply_settings(self.settings)
         self.bind_hotkeys()
     
     def bind_hotkeys(self):
-        # Прив'язка гарячих клавіш (stub‑варіант; розширити за потребою)
         for key, binding in self.settings.get("hotkeys", {}).items():
             self.bind(f"<{binding}>", lambda event, k=key: self.on_hotkey(k))
     
     def on_hotkey(self, key):
-        # Пробуємо передати гарячу клавішу у поточний фрейм, якщо він підтримує on_hotkey
-        current = self.focus_get()
-        frame = self.frames.get(current)
-        # stub: просто друкуємо натискання
         print(f"Hotkey {key} pressed.")
 
-# Головне меню
 class MainMenu(ctk.CTkFrame):
     def __init__(self, parent, controller):
         super().__init__(parent)
@@ -111,6 +118,10 @@ class MainMenu(ctk.CTkFrame):
                                   command=lambda: controller.show_frame("GraphPlot"))
         btn_graph.pack(pady=10, padx=20, fill="x")
         
+        btn_web = ctk.CTkButton(self, text="Відкрити веб-версію", font=("Helvetica", 18),
+                                command=launch_web_interface)
+        btn_web.pack(pady=10, padx=20, fill="x")
+        
         btn_help = ctk.CTkButton(self, text="Довідка", font=("Helvetica", 18),
                                  command=self.open_help)
         btn_help.pack(pady=10, padx=20, fill="x")
@@ -125,7 +136,6 @@ class MainMenu(ctk.CTkFrame):
     def open_settings(self):
         SettingsWindow(self.controller)
 
-# Вікно налаштувань
 class SettingsWindow(ctk.CTkToplevel):
     def __init__(self, controller):
         super().__init__(controller)
@@ -133,14 +143,12 @@ class SettingsWindow(ctk.CTkToplevel):
         self.title("Налаштування інтерфейсу")
         self.geometry("500x400")
         
-        # Варіанти теми
         theme_label = ctk.CTkLabel(self, text="Оберіть тему:", font=("Helvetica", 16))
         theme_label.pack(pady=(20,5))
         self.theme_var = tk.StringVar(value=self.controller.settings.get("theme", "light"))
         theme_menu = ctk.CTkOptionMenu(self, values=["light", "dark"], variable=self.theme_var)
         theme_menu.pack(pady=5)
         
-        # Розмір шрифту
         font_label = ctk.CTkLabel(self, text="Розмір шрифту:", font=("Helvetica", 16))
         font_label.pack(pady=(20,5))
         self.font_size_slider = ctk.CTkSlider(self, from_=12, to=36, number_of_steps=24,
@@ -150,11 +158,9 @@ class SettingsWindow(ctk.CTkToplevel):
         self.font_size_value = ctk.CTkLabel(self, text=f"{int(self.font_size_slider.get())}", font=("Helvetica", 16))
         self.font_size_value.pack(pady=5)
         
-        # Гарячі клавіші (stub)
-        hotkeys_label = ctk.CTkLabel(self, text="Гарячі клавіші (формат: Кнопка:Binding)", font=("Helvetica", 16))
+        hotkeys_label = ctk.CTkLabel(self, text="Гарячі клавіші (Кнопка:Binding)", font=("Helvetica", 16))
         hotkeys_label.pack(pady=(20,5))
         self.hotkeys_entry = ctk.CTkEntry(self, width=400, font=("Helvetica", 16))
-        # Відображаємо поточні налаштування у вигляді рядка
         hotkeys_str = ", ".join([f"{k}:{v}" for k, v in self.controller.settings.get("hotkeys", {}).items()])
         self.hotkeys_entry.insert(0, hotkeys_str)
         self.hotkeys_entry.pack(pady=5)
@@ -169,7 +175,6 @@ class SettingsWindow(ctk.CTkToplevel):
         new_settings = {
             "theme": self.theme_var.get(),
             "font_size": int(self.font_size_slider.get()),
-            # Просте парсування гарячих клавіш; формат: "C:Escape, ⌫:BackSpace, =:Return"
             "hotkeys": {}
         }
         hotkeys_raw = self.hotkeys_entry.get()
@@ -180,7 +185,6 @@ class SettingsWindow(ctk.CTkToplevel):
         self.controller.update_settings(new_settings)
         self.destroy()
 
-# Простий калькулятор
 class SimpleCalc(ctk.CTkFrame):
     def __init__(self, parent, controller):
         super().__init__(parent)
@@ -233,10 +237,8 @@ class SimpleCalc(ctk.CTkFrame):
             self.display_var.set("Error")
     
     def apply_settings(self, settings):
-        # Оновлення шрифту дисплея
         self.display_entry.configure(font=("Helvetica", settings.get("font_size", 18)))
 
-# Складний калькулятор з розширеною історією
 class AdvancedCalc(ctk.CTkFrame):
     HISTORY_FILE = "advanced_history.txt"
     
@@ -246,11 +248,10 @@ class AdvancedCalc(ctk.CTkFrame):
         self.expression = ""
         self.last_result = ""
         self.memory = 0
-        self.history_list = []  # буде зберігати кортежі: (timestamp, entry_text)
+        self.history_list = []  # зберігаємо кортежі: (timestamp, entry_text)
         self.history_sort_ascending = True
         self.load_history()
         
-        # Розбиття на калькулятор і історію
         self.calc_frame = ctk.CTkFrame(self)
         self.calc_frame.grid(row=0, column=0, sticky="nsew", padx=(10,5), pady=10)
         self.history_frame = ctk.CTkFrame(self, width=300)
@@ -289,7 +290,6 @@ class AdvancedCalc(ctk.CTkFrame):
                 self.calc_frame.grid_columnconfigure(j, weight=1)
             self.calc_frame.grid_rowconfigure(i, weight=1)
         
-        # Область історії з елементами керування
         top_history = ctk.CTkFrame(self.history_frame)
         top_history.pack(fill="x", padx=5, pady=5)
         
@@ -428,7 +428,6 @@ class AdvancedCalc(ctk.CTkFrame):
     def update_history_text(self, filter_text=""):
         self.history_text.configure(state="normal")
         self.history_text.delete("1.0", "end")
-        # Сортуємо історію відповідно до налаштування
         sorted_history = sorted(self.history_list, key=lambda x: x[0], reverse=not self.history_sort_ascending)
         for ts, entry_text in sorted_history:
             if filter_text.lower() in entry_text.lower():
@@ -454,9 +453,8 @@ class AdvancedCalc(ctk.CTkFrame):
             with open(self.HISTORY_FILE, "r") as f:
                 for line in f:
                     try:
-                        # Припускаємо, що кожен рядок починається з timestamp
                         ts_str, rest = line.split(":", 1)
-                        ts = datetime.datetime.strptime(ts_str, "%Y-%m-%d %H%M%S")
+                        ts = datetime.datetime.strptime(ts_str, "%Y-%m-%d %H:%M:%S")
                     except:
                         ts = datetime.datetime.now()
                     self.history_list.append((ts, line))
@@ -488,7 +486,6 @@ class AdvancedCalc(ctk.CTkFrame):
         self.update_history_text()
     
     def plot_history(self):
-        # Побудова діаграми: кількість обчислень за датою
         date_counts = {}
         for ts, _ in self.history_list:
             d = ts.date()
@@ -507,18 +504,15 @@ class AdvancedCalc(ctk.CTkFrame):
         plt.show()
     
     def apply_settings(self, settings):
-        # Оновлення шрифту дисплею та історії
         font = ("Helvetica", settings.get("font_size", 18))
         self.display_entry.configure(font=font)
         self.history_text.configure(font=("Helvetica", 12))
 
-# Розширений конвертор
 class Converter(ctk.CTkFrame):
     def __init__(self, parent, controller):
         super().__init__(parent)
         self.controller = controller
         
-        # Категорії та одиниці (додано Валюта)
         self.categories = {
             "Довжина": {
                 "Метри": 1,
@@ -595,7 +589,6 @@ class Converter(ctk.CTkFrame):
         convert_btn = ctk.CTkButton(self, text="Конвертувати", font=("Helvetica", 16), command=self.convert)
         convert_btn.grid(row=4, column=0, columnspan=2, padx=10, pady=10, sticky="ew")
         
-        # Кнопка для оновлення валютних курсів (тільки для категорії Валюта)
         self.update_rates_btn = ctk.CTkButton(self, text="Оновити курси", font=("Helvetica", 16),
                                               command=self.update_currency_rates)
         self.update_rates_btn.grid(row=5, column=0, columnspan=2, padx=10, pady=5, sticky="ew")
@@ -619,7 +612,7 @@ class Converter(ctk.CTkFrame):
     def update_units(self, choice):
         cat = self.categories[choice]
         if choice == "Температура":
-            units = cat  # Список температурних одиниць
+            units = cat
         else:
             units = list(cat.keys())
         self.from_menu.configure(values=units)
@@ -667,8 +660,6 @@ class Converter(ctk.CTkFrame):
         label.pack(padx=20, pady=20)
     
     def update_currency_rates(self):
-        # Stub‑функція: тут можна інтегрувати API для оновлення валютних курсів
-        # Наприклад, оновити self.categories["Валюта"] на основі веб-запиту
         self.categories["Валюта"] = {
             "USD": 1,
             "EUR": 0.9,
@@ -682,7 +673,6 @@ class Converter(ctk.CTkFrame):
         font = ("Helvetica", settings.get("font_size", 18))
         self.value_entry.configure(font=font)
 
-# Графічний модуль для побудови графіків функцій
 class GraphPlot(ctk.CTkFrame):
     def __init__(self, parent, controller):
         super().__init__(parent)
@@ -758,10 +748,8 @@ class GraphPlot(ctk.CTkFrame):
             tk.messagebox.showerror("Помилка", "Не вдалося зберегти графік")
     
     def apply_settings(self, settings):
-        # Оновлення шрифту для елементів графічного модуля (якщо потрібно)
         pass
 
-# Вікно довідки
 class HelpWindow(ctk.CTkToplevel):
     def __init__(self, parent):
         super().__init__(parent)
@@ -774,7 +762,8 @@ class HelpWindow(ctk.CTkToplevel):
             "3. Конвертор: конвертація одиниць за категоріями (довжина, об’єм, температура, вага, швидкість, енергія, тиск, валюта).\n"
             "   - Для валюти є можливість оновлення курсів.\n"
             "4. Графіки функцій: введіть вираз f(x), вкажіть діапазон x та побудуйте графік. Також можна експортувати графік у PNG.\n"
-            "5. Налаштування: змініть тему, розмір шрифту та гарячі клавіші за бажанням.\n\n"
+            "5. Налаштування: змініть тему, розмір шрифту та гарячі клавіші за бажанням.\n"
+            "6. З головного меню можна відкрити веб-версію додатку, яка забезпечує подібний функціонал.\n\n"
             "Для повернення до головного меню використовуйте кнопку 'Назад'."
         )
         text_widget = ctk.CTkTextbox(self, width=600, height=400, font=("Helvetica", 14), wrap="word")
